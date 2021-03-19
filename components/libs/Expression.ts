@@ -1,16 +1,6 @@
-const createTypeError = (...args: any[]): TypeError => {
-  const err = new TypeError();
-
-  Error.captureStackTrace(err, createTypeError);
-
-  return Object.assign(err, ...args.map(arg => {
-    if (typeof arg === 'function') {
-      Error.captureStackTrace(err, arg);
-      return arg;
-    }
-    return (typeof arg === 'string') ? { message: arg } : arg;
-  }));
-}
+import { createExpressionError } from "./createExpressionError";
+import { Wildcard } from "./Wildcard";
+import { wildcards } from "./wildcards";
 
 export enum ExpressionType {
   cron = 'cron',
@@ -30,55 +20,12 @@ const regexpExpression = /^(?<type>.+)\((?<body>.+)\)$/;
 const regexpCronExpression = /^\s*(?<Minutes>[^\s]+)\s+(?<Hours>[^\s]+)\s+(?<Day_of_month>[^\s]+)\s+(?<Month>[^\s]+)\s+(?<Day_of_week>[^\s]+)\s+(?<Year>[^\s]+)\s*$/;
 const regexpRateExpression = /^\s*(?<Value>\d+)\s+(?<Unit>[^\s]+)\s*$/;
 
-class WildcardList<T extends string> {
-  constructor(private list: Wildcard<T>[]) { }
-  get = (name: T) => this.list.find(item => item.name === name)
-}
-
-class Wildcard<T extends string = string> extends RegExp {
-  constructor(readonly name: T) {
-    super(Wildcard.strToRegExp(name));
-  }
-
-  static strToRegExp(str: string) {
-    const r = `NUM ${str}`.split(/\s+/g).map((exp, i, exps) => {
-      const weekDayName = [
-        'TUE',
-        'WED',
-        'THU',
-        'FRI',
-        'SAT',
-        'SUN',
-        'MON',
-      ]
-      const weekDayNameStr = `(${weekDayName.join('|')})`
-      switch (exp) {
-        case `NUM`: return exps.includes('L') ? `${weekDayNameStr}|\\d+` : `\\d+`;
-        case `#`: return exps.includes('L') ? `(${weekDayNameStr}|\\d+)\\#\\d+` : `\\d+\\#\\d+`;
-        case `,`: return exps.includes('L') ? `(${weekDayNameStr}\\,${weekDayNameStr}(\\,${weekDayNameStr})*)|(\\d+\\,\\d+(\\,\\d+)*)` : `\\d+\\,\\d+(\\,\\d+)*`;
-        case `-`: return exps.includes('L') ? `(${weekDayNameStr}\\-${weekDayNameStr}|\\d+\\-\\d+)` : `\\d+\\-\\d+`;
-        case `/`: return `\\d+\\/\\d+`;
-        case 'L': return `(L|\\d+L)`;
-        case 'W': return `(\\d+W)`;
-        case `*`: return `\\*`;
-        case `?`: return `\\?`;
-      }
-    }).filter(Boolean).join('|');
-    return new RegExp(`^(${r})$`);
-  }
-}
-
-const wildcards = new WildcardList<', - * /' | ', - * ? / L W' | ', - * ? L #'>([
-  new Wildcard(', - * /'),
-  new Wildcard(', - * ? / L W'),
-  new Wildcard(', - * ? L #'),
-]);
-
 export class Expression {
 
   inspect(expression: string) {
     const resultEvalExpression = regexpExpression.exec(expression);
-    if (resultEvalExpression === null) throw createTypeError(Expression.prototype.inspect, `Expression ${JSON.stringify(expression)} unrecognizable`);
+    if (resultEvalExpression === null) throw createExpressionError(Expression.prototype.inspect, `Expression unrecognizable`, { meta: { SyntaxError: '' } });
+    console.log(resultEvalExpression)
     const type = this.parseType(resultEvalExpression.groups.type);
 
     return {
@@ -98,7 +45,7 @@ export class Expression {
 
   private inspectCronBody(body: string) {
     const resultExpresion = regexpCronExpression.exec(body);
-    if (resultExpresion === null) throw createTypeError(Expression.prototype.inspect, `Unrecognizable body ${JSON.stringify(body)} in cron expression`);
+    if (resultExpresion === null) throw createExpressionError(Expression.prototype.inspect, `Unrecognizable expression`);
 
     const minutes = this.assertCronValueExpression('Minutes', resultExpresion.groups.Minutes, wildcards.get(", - * /"))
     const hours = this.assertCronValueExpression('Hours', resultExpresion.groups.Hours, wildcards.get(", - * /"))
@@ -118,13 +65,13 @@ export class Expression {
   }
 
   private assertCronValueExpression(propName: string, value: string, wildcard: Wildcard) {
-    if (!wildcard.test(value)) throw new TypeError(`Error ${propName} ${value} expression ${wildcard.name}`)
+    if (!wildcard.test(value)) throw createExpressionError(Expression.prototype.inspect, `Error ${propName} ${value} expression ${wildcard.name}`)
     return value;
   }
 
   private inspectRateBody(body: string) {
     const resultExpresion = regexpRateExpression.exec(body);
-    if (resultExpresion === null) throw createTypeError(Expression.prototype.inspect, `Unrecognizable body ${JSON.stringify(body)} in rate expression`);
+    if (resultExpresion === null) throw createExpressionError(Expression.prototype.inspect, `Unrecognizable body ${JSON.stringify(body)} in rate expression`);
 
     const value = Number(resultExpresion.groups.Value);
     const unit = this.parseRateUnit(value, resultExpresion.groups.Unit);
@@ -141,14 +88,14 @@ export class Expression {
         case 'minute': return RateUnit.minute;
         case 'hour': return RateUnit.hour;
         case 'day': return RateUnit.day;
-        default: throw createTypeError(Expression.prototype.inspect, `Unit ${JSON.stringify(unit)} values is not a expression valid`);
+        default: throw createExpressionError(Expression.prototype.inspect, `Unit ${JSON.stringify(unit)} values is not a expression valid`);
       }
     } else {
       switch (unit) {
         case 'minutes': return RateUnit.minutes;
         case 'hours': return RateUnit.hours;
         case 'days': return RateUnit.days;
-        default: throw createTypeError(Expression.prototype.inspect, `Unit ${JSON.stringify(unit)} values is not a expression valid`);
+        default: throw createExpressionError(Expression.prototype.inspect, `Unit ${JSON.stringify(unit)} values is not a expression valid`);
       }
     }
   }
@@ -157,7 +104,7 @@ export class Expression {
     switch (type) {
       case 'cron': return ExpressionType.cron;
       case 'rate': return ExpressionType.rate;
-      default: throw createTypeError(Expression.prototype.inspect, `Invalid type ${JSON.stringify(type)}.`);
+      default: throw createExpressionError(Expression.prototype.inspect, `Invalid type ${JSON.stringify(type)}.`);
     }
   }
 

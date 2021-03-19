@@ -1,6 +1,6 @@
 import { Expression, E } from "./Expression"
 
-describe('Expression', () => {
+describe.skip('Expression', () => {
   it('DEMO', () => {
     const exp = new Expression()
 
