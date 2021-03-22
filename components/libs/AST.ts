@@ -13,14 +13,14 @@ const wildcards = new WildcardList<', - * /' | ', - * ? / L W' | ', - * ? L #'>(
 ]);
 
 export interface Node {
-  type: string
+  $type: string
   start: number
   end: number
-  _exp: string
+  $exp: string
 }
 
 export class Cron implements Node {
-  type = 'Cron';
+  $type = 'Cron';
   end: number;
 
   minutes: string;
@@ -30,32 +30,32 @@ export class Cron implements Node {
   dayOfWeek: string;
   year: string;
 
-  constructor(readonly start: number, readonly _exp: string) {
-    this.end = this._exp.length;
+  constructor(readonly start: number, readonly $exp: string) {
+    this.end = this.$exp.length;
 
     this.prepare()
   }
 
   private prepare() {
-    const regexp = /^\s*(?<Minutes>[^\s]+)\s+(?<Hours>[^\s]+)\s+(?<Day_of_month>[^\s]+)\s+(?<Month>[^\s]+)\s+(?<Day_of_week>[^\s]+)\s+(?<Year>[^\s]+)\s*$/.test(this._exp);
+    const regexp = /^\s*(?<Minutes>[^\s]+)\s+(?<Hours>[^\s]+)\s+(?<Day_of_month>[^\s]+)\s+(?<Month>[^\s]+)\s+(?<Day_of_week>[^\s]+)\s+(?<Year>[^\s]+)\s*$/.test(this.$exp);
     if (!regexp) throw createExpressionError(this.start, `Unexpected token (${this.start})`);
 
-    const rMinutes = /(?<Minutes>[^\s]+)/.exec(this._exp);
+    const rMinutes = /(?<Minutes>[^\s]+)/.exec(this.$exp);
     const rMinutesStart = rMinutes.index
     const rMinutesEnd = rMinutes.index + rMinutes.groups.Minutes.length;
-    const rHours = /(?<Hours>[^\s]+)/.exec(this._exp.slice(rMinutesEnd));
+    const rHours = /(?<Hours>[^\s]+)/.exec(this.$exp.slice(rMinutesEnd));
     const rHoursStart = rMinutesEnd + rHours.index
     const rHoursEnd = rMinutesEnd + rHours.index + rHours.groups.Hours.length;
-    const rDay_of_month = /(?<Day_of_month>[^\s]+)/.exec(this._exp.slice(rHoursEnd));
+    const rDay_of_month = /(?<Day_of_month>[^\s]+)/.exec(this.$exp.slice(rHoursEnd));
     const rDay_of_monthStart = rHoursEnd + rDay_of_month.index
     const rDay_of_monthEnd = rHoursEnd + rDay_of_month.index + rDay_of_month.groups.Day_of_month.length;
-    const rMonth = /(?<Month>[^\s]+)/.exec(this._exp.slice(rDay_of_monthEnd));
+    const rMonth = /(?<Month>[^\s]+)/.exec(this.$exp.slice(rDay_of_monthEnd));
     const rMonthStart = rDay_of_monthEnd + rMonth.index
     const rMonthEnd = rDay_of_monthEnd + rMonth.index + rMonth.groups.Month.length;
-    const rDay_of_week = /(?<Day_of_week>[^\s]+)/.exec(this._exp.slice(rMonthEnd));
+    const rDay_of_week = /(?<Day_of_week>[^\s]+)/.exec(this.$exp.slice(rMonthEnd));
     const rDay_of_weekStart = rMonthEnd + rDay_of_week.index
     const rDay_of_weekEnd = rMonthEnd + rDay_of_week.index + rDay_of_week.groups.Day_of_week.length;
-    const rYear = /(?<Year>[^\s]+)/.exec(this._exp.slice(rDay_of_weekEnd));
+    const rYear = /(?<Year>[^\s]+)/.exec(this.$exp.slice(rDay_of_weekEnd));
     const rYearStart = rDay_of_weekEnd + rYear.index
     const rYearEnd = rDay_of_weekEnd + rYear.index + rYear.groups.Year.length;
 
@@ -83,20 +83,20 @@ export enum RateUnit {
 }
 
 export class Rate implements Node {
-  type = 'Rate';
+  $type = 'Rate';
   end: number;
   value: number;
   unit: string;
 
-  constructor(readonly start: number, readonly _exp: string) {
-    this.end = this._exp.length;
+  constructor(readonly start: number, readonly $exp: string) {
+    this.end = this.$exp.length;
     this.procesable();
   }
 
   private procesable() {
-    if (!/^\s*(?<Value>\d+)\s+(?<Unit>[^\s]+)\s*$/.test(this._exp)) throw createExpressionError(this.start, `Unexpected token (${this.start})`)
-    const r = /(?<Value>\d+)/.exec(this._exp);
-    const r2 = /(?<Unit>[^\s]+)/.exec(this._exp.slice(r.index + r.groups.Value.length));
+    if (!/^\s*(?<Value>\d+)\s+(?<Unit>[^\s]+)\s*$/.test(this.$exp)) throw createExpressionError(this.start, `Unexpected token (${this.start})`)
+    const r = /(?<Value>\d+)/.exec(this.$exp);
+    const r2 = /(?<Unit>[^\s]+)/.exec(this.$exp.slice(r.index + r.groups.Value.length));
 
     this.value = Number(r.groups.Value);
     this.unit = this.parseRateUnit(this.value, r2.groups.Unit, this.start + r.index + r.groups.Value.length + r2.index);
@@ -122,21 +122,21 @@ export class Rate implements Node {
 }
 
 export class Program implements Node {
-  type = 'Program'
+  $type = 'Program'
   start: number
   end: number
-  _exp: string
+  $exp: string
   body: Cron | Rate
 
   constructor(body: string) {
     this.start = 0
     this.end = body.length
-    this._exp = body
+    this.$exp = body
     this.procesable();
   }
 
   private procesable() {
-    const resultExp = /^(?<ExpressionType>cron|rate)\((?<Body>[\W|\w]+)\)/.exec(this._exp);
+    const resultExp = /^(?<ExpressionType>cron|rate)\((?<Body>[\W|\w]+)\)/.exec(this.$exp);
     if (!resultExp) throw createExpressionError(this.start, `Unexpected token (${this.start})`);
 
     if (resultExp.groups.ExpressionType === 'cron')

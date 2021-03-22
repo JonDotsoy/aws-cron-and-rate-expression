@@ -1,12 +1,10 @@
-import { useState } from "react";
 import { Cron, Rate } from "../components/libs/AST";
 import { useExpressionEvaluation } from "../components/useExpressionEvaluation";
+import { useExpressionState } from "../components/useExpressionState";
 
 const App = () => {
-  const [inpt, setInpt] = useState<string | null>('rate(1 day)');
-  const { evaluation } = useExpressionEvaluation({ inpt: inpt })
-
-  console.log(evaluation)
+  const [inpt, keyChanes, setInpt, random] = useExpressionState();
+  const { evaluation } = useExpressionEvaluation({ inpt: inpt });
 
   return <>
     <div className="bg-gray-700 min-h-screen">
@@ -17,7 +15,10 @@ const App = () => {
           <p className="text-white text-center">Simple editor of Cron and Rate Expression.</p>
         </div>
         <div className="pb-16">
-          <input className="border rounded-full bg-blue-100 border-blue-600 w-full p-4 text-5xl text-center font-mono" type="text" placeholder="rate(3 days)" defaultValue={inpt} onChange={(target) => setInpt(target.currentTarget.value)} />
+          <p className="text-white text-right px-10">
+            <button onClick={() => random()}>Random</button>
+          </p>
+          <input key={keyChanes} className="border rounded-full bg-blue-100 border-blue-600 w-full p-4 text-5xl text-center font-mono" type="text" placeholder="rate(3 days)" defaultValue={inpt} onChange={(target) => setInpt(target.currentTarget.value)} />
           {typeof evaluation?.error?.meta?.start === 'number' && <div className="text-white text-center text-5xl font-mono whitespace-pre"><span className="text-transparent">{inpt.slice(0, evaluation.error.meta.start)}</span>^<span className="text-transparent">{inpt.slice(evaluation.error.meta.start + 1)}</span></div>}
           <p className="text-white text-3xl text-center">{evaluation?.error?.message ?? null}</p>
         </div>
@@ -30,11 +31,11 @@ const App = () => {
 
         <div className="w-full">
           <div className="w-2/5 m-auto">
-            <h1 className="w-full text-white text-center text-3xl">{evaluation?.evaluation?.body?.type}</h1>
+            <h1 className="w-full text-white text-center text-3xl">{evaluation?.evaluation?.body?.$type}</h1>
 
             <table className="border-separate w-full table-fixed text-white">
               <tbody >
-                {evaluation?.evaluation?.body?.type && evaluation.evaluation.body instanceof Rate && <>
+                {evaluation?.evaluation?.body?.$type && evaluation.evaluation.body instanceof Rate && <>
                   <tr>
                     <th className="underline text-right border-b border-dashed p-4">Unit</th>
                     <td className="text-left border-b border-dashed p-4">{evaluation.evaluation.body.unit}</td>
@@ -45,7 +46,7 @@ const App = () => {
                   </tr>
                 </>}
 
-                {evaluation?.evaluation?.body?.type && evaluation.evaluation.body instanceof Cron && <>
+                {evaluation?.evaluation?.body?.$type && evaluation.evaluation.body instanceof Cron && <>
                   <tr>
                     <th className="underline text-right border-b border-dashed p-4">Minutes</th>
                     <td className="text-left border-b border-dashed p-4">{evaluation.evaluation.body.minutes}</td>
