@@ -1,3 +1,3 @@
 module.exports = {
-  basePath: '/aws-cron-and-rate-expression/',
+  basePath: '/aws-cron-and-rate-expression',
 }
